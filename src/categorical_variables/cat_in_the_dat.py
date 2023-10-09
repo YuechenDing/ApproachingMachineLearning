@@ -48,7 +48,7 @@ def preprocess(dataframe_all, fill_na=True, select_fill_na_feature=None,
             # encoder fit_transform
             encoder = config.encode_dict[categorical_encode]
             if categorical_encode == "OneHot":
-                ##### TODO: OneHotEncoder for selected features
+                ###### TODO: OneHotEncoder for selected features
                 encoder.fit(dataframe_all)
             else:
                 for col in columns:
