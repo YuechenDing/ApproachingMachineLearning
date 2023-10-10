@@ -1,7 +1,7 @@
 from sklearn import preprocessing, model_selection, ensemble, tree, linear_model
 import xgboost as xgb
 
-FOLD_NUM = 600
+FOLD_NUM = 5
 RARE_VALUE_COUNTS = 2000
 RARE_VALUE_RATIO = 0.03
 TRAIN_CSV_PATH = "../../input/cat_in_the_dat/train.csv"
