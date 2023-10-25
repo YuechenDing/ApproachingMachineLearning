@@ -21,3 +21,5 @@ METRICS_DICT = {
 TUNE_MODEL_DICT = {
     "grid_search": model_selection.GridSearchCV
 }
+
+ENSEMBLE_MODE_SET = {"model_ensemble", "climb_hill"}

@@ -34,6 +34,9 @@ def preprocess(dataframe_all, fill_na=False, dict_fill_na_category=None, constru
         continuous_transform=None, select_contious_transform=None, rare_value_counts=RARE_VALUE_COUNTS,
         rare_value_ratio=RARE_VALUE_RATIO, rare_mode="max_hybrid", config_encode_dict=ENCODE_DICT, 
         config_transform_dict=TRANSFORM_DICT):
+    """
+    Fill NaN; Construct rare class; Encode categorical; Transform continuous
+    """
     print("[preprocess]: start to fill NaN...")
     if fill_na == True:
         # fill NaN categorical & continuous
@@ -131,4 +134,4 @@ def preprocess(dataframe_all, fill_na=False, dict_fill_na_category=None, constru
             print("Error: select_categorical_encode should be None or str or list type")
             return -1
 
-    return dataframe_all, categorical_encoder
+    return dataframe_all
