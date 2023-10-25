@@ -130,28 +130,50 @@ def classification_single_model_hyperparam_cv(df_labeled, df_target, df_test_enc
 
 def classification_ensemble_cv(df_labeled, df_target, df_test_encoding, 
         df_test_id, target_column_name, csv_save_path, fold_num,
-        cv_mode, metrics_str, model_dict, ensemble_mode, ensemble_model=None):
+        cv_mode, metrics_str, model_dict, ensemble_mode, ensemble_model=None,
+        dict_model_choose_data=None):
         
+    if isinstance(df_labeled, dict):
+        df_labeled_data = np.zeros(len(df_target))   # only used for place holder
+    else:
+        df_labeled_data = df_labeled
+
     list_fold_best_metric_score = []
-    for fold_index, (train_index, val_index) in enumerate(cv_mode.split(X=df_labeled, y=df_target)):
-        X_train = df_labeled.loc[train_index]
-        X_val = df_labeled.loc[val_index]
+    for fold_index, (train_index, val_index) in enumerate(cv_mode.split(X=df_labeled_data, y=df_target)):
+        X_train = df_labeled_data.loc[train_index]
+        X_val = df_labeled_data.loc[val_index]
         Y_train = df_target.loc[train_index]
         Y_val = df_target.loc[val_index]
 
         # train model & metrics score for validation data
         metrics_score_dict = {}
-        df_model_pred_val, df_model_pred_test = pd.DataFrame([]), pd.DataFrame([])
+        df_model_pred_train, df_model_pred_val, df_model_pred_test = \
+                pd.DataFrame([]), pd.DataFrame([]), pd.DataFrame([])
         for model_name, model in model_dict.items():
+            # choose data
+            if dict_model_choose_data is not None:
+                df_X_all = df_labeled[dict_model_choose_data[model_name]]
+                X_train = df_X_all.loc[train_index]
+                X_val = df_X_all.loc[val_index]
+                df_test_encoding_data = df_test_encoding[dict_model_choose_data[model_name]]
+            else:
+                df_test_encoding_data = df_test_encoding
+            # train & validation
             print(f"[Debug]: Training for {model_name}...")
             model.fit(X_train, Y_train)
             print(f"[Debug]: Validation for {model_name}...")
             pred_val = model.predict_proba(X_val)[:, 1]
-            pred_test = model.predict_proba(df_test_encoding)[:, 1]
+            pred_test = model.predict_proba(df_test_encoding_data)[:, 1]
             val_metric = mlu.METRICS_DICT[metrics_str](Y_val, pred_val)
             metrics_score_dict[model_name] = val_metric
             df_model_pred_val[model_name] = pred_val
             df_model_pred_test[model_name] = pred_test
+
+            # model based ensemble will use predictions on train_data 
+            #     to train ensemble model
+            if ensemble_model is not None:
+                pred_train = model.predict_proba(X_train)[:, 1]
+                df_model_pred_train[model_name] = pred_train
         
         # debug string for metrics score
         print(f"[Debug]: {metrics_str} for {fold_index}th fold:")
@@ -163,7 +185,7 @@ def classification_ensemble_cv(df_labeled, df_target, df_test_encoding,
         ensemble_processor = ensemble.EnsembleProcessor(ensemble_mode, metrics_str, 
                 ensemble_model, metrics_score_dict)
         df_test_ensemble, best_metric_score = ensemble_processor.find(
-                df_model_pred_val, Y_val, df_model_pred_test)
+                df_model_pred_train, Y_train, df_model_pred_val, Y_val, df_model_pred_test)
 
         list_fold_best_metric_score.append(best_metric_score)
 

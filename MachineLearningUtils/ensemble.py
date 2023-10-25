@@ -1,4 +1,5 @@
 import MachineLearningUtils as mlu
+from MachineLearningUtils import utils
 import numpy as np
 class EnsembleProcessor:
     def __init__(self, ensemble_mode, metric_str="roc_auc", ensemble_model=None, 
@@ -8,15 +9,41 @@ class EnsembleProcessor:
         self.metric_str = metric_str
         self.metrics_score_dict = metrics_score_dict
         self.weight_range = weight_range
-    def find(self, df_model_pred_val, Y_val, df_model_pred_test):
+    def find(self, df_model_pred_train, Y_train, df_model_pred_val, Y_val, df_model_pred_test):
+        # check ensemble_mode
         if self.ensemble_mode not in mlu.ENSEMBLE_MODE_SET:
-            print(f"[EnsembleProcessor]: argument: ensemble_mode={self.ensemble_mode} is not supported")
+            print(f"[Error] : [EnsembleProcessor]: argument: "
+                    "ensemble_mode={self.ensemble_mode} is not supported")
             return -1
+
         if self.ensemble_mode == "climb_hill":
-            return self._climb_hill_ensemble(self.metrics_score_dict, df_model_pred_val, Y_val, df_model_pred_test)
+            # check type
+            if not isinstance(self.metrics_score_dict, dict):
+                print("[Error] : [EnsembleProcessor]: argument: metrics_score_dict "
+                        "should be dict type when ensemble_mode is 'climb_hill'")
+                return -1
+            
+            return self._climb_hill_ensemble(self.metrics_score_dict, 
+                    df_model_pred_val, Y_val, df_model_pred_test)
         if self.ensemble_mode == "model_ensemble":
-            #### TODO: model ensemble
-            pass
+            # check type
+            if self.ensemble_model is None:
+                print("[Error] : [EnsembleProcessor]: argument: ensemble_model "
+                        "should not be None when ensemble_mode is 'model_ensemble'")
+                return -1
+
+            return self._model_ensemble(df_model_pred_train, Y_train, 
+                    df_model_pred_val, Y_val, df_model_pred_test)
+
+    def _model_ensemble(self, df_model_pred_train, Y_train, df_model_pred_val, Y_val, df_model_pred_test):
+        self.ensemble_model.fit(df_model_pred_train, Y_train)
+        pred_ensemble_val = self.ensemble_mode.predict_proba(df_model_pred_val)[:, 1]
+        ensemble_metric_score = mlu.METRICS_DICT[self.metric_str](Y_val, pred_ensemble_val)
+        print(f"[Debug] : [model_ensemble] {self.metric_str}: {ensemble_metric_score}")
+
+        pred_test = self.ensemble_mode.predict_proba(df_model_pred_test)[:, 1]
+        return pred_test, ensemble_metric_score
+        
     def _climb_hill_ensemble(self, metrics_score_dict, df_model_pred_val, Y_val, df_model_pred_test):
         # sort metrics_score_dict
         metrics_score_dict = {k: v for k, v in sorted(
@@ -51,7 +78,7 @@ class EnsembleProcessor:
                         (1 - current_best_weight) * df_model_pred_val[current_best_model_name]
                 current_best_pred_test = current_best_weight * current_best_pred_test + \
                         (1 - current_best_weight) * df_model_pred_test[current_best_model_name]
-                print(f"[climb_hill_ensemble] Find better {self.metric_str}: {current_best_metric_score}")
+                print(f"[Debug] : [climb_hill_ensemble] Find better {self.metric_str}: {current_best_metric_score}")
                 set_model_name.remove(current_best_model_name)
                 if len(set_model_name) == 0:
                     could_found_better = False

@@ -23,7 +23,6 @@ def transform_to_value_list(argument, length):
 def check_single_value(argument):
     return isinstance(argument, (str, int, float))
 
-
 def save_kaggle_csv(test_id, Y_column_name, prediction_probability, df_output_path):
     """
     test_id: Series (id of test dataframe)
