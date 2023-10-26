@@ -1,4 +1,5 @@
 from sklearn import preprocessing, metrics, model_selection
+import torch.nn as nn
 
 IS_CONTINUOUS_RATIO = 0.9
 RARE_VALUE_COUNTS = 2000
@@ -23,3 +24,10 @@ TUNE_MODEL_DICT = {
 }
 
 ENSEMBLE_MODE_SET = {"model_ensemble", "climb_hill"}
+
+ACTIVATION_DICT = {
+    "ELU": nn.ELU(),
+    "GLU": nn.GLU(),
+    "Mish": nn.Mish(),
+    "ReLU": nn.ReLU()
+}
