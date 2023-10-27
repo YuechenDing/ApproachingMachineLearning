@@ -134,7 +134,7 @@ def classification_ensemble_cv(df_labeled, df_target, df_test_encoding,
         dict_model_choose_data=None):
         
     if isinstance(df_labeled, dict):
-        df_labeled_data = np.zeros(len(df_target))   # only used for place holder
+        df_labeled_data = pd.DataFrame(np.zeros(len(df_target)))   # only used for place holder
     else:
         df_labeled_data = df_labeled
 
@@ -151,7 +151,7 @@ def classification_ensemble_cv(df_labeled, df_target, df_test_encoding,
                 pd.DataFrame([]), pd.DataFrame([]), pd.DataFrame([])
         for model_name, model in model_dict.items():
             # choose data
-            if dict_model_choose_data is not None:
+            if isinstance(df_labeled, dict):
                 df_X_all = df_labeled[dict_model_choose_data[model_name]]
                 X_train = df_X_all.loc[train_index]
                 X_val = df_X_all.loc[val_index]
