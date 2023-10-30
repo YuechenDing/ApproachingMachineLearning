@@ -49,9 +49,9 @@ def clear_unselected_columns(dataframe, catecorical_list=None, drop_categorical=
 def log_transform(dataframe, columns, replace=True, continuous_list=None):
     # check type
     columns = utils.transform_single_value_to_list(columns)
-    if columns == -1:
-        print("Error: [log_transform] argument: columns must be list or single value type")
-        return -1
+    if isinstance(columns, utils.ErrorStatus):
+        print(columns.get_message())
+        return utils.ErrorStatus("log_transform")
     
     if replace == True:
         dataframe[columns] = dataframe[columns].apply(lambda x: np.log(1 + x))
@@ -63,21 +63,25 @@ def log_transform(dataframe, columns, replace=True, continuous_list=None):
     return dataframe
 
 def bin_transform(dataframe, columns, bin_amount, replace=False, 
-        continuous_list=None, categorical_list=None):
-    # check type
+        continuous_list=None, categorical_list=None, log_level=1):
+    log_writter = utils.LogWritter(log_level)
+    # check columns value type
+    # check_transform bin_amount value type
     columns = utils.transform_single_value_to_list(columns)
     bin_amount = utils.transform_to_value_list(bin_amount, len(columns))
-    if columns == -1 or bin_amount == -1:
-        print("Error: [bin_transform] argument: columns, bin_amount must be list or single value type")
-        return -1
+    if isinstance(columns, utils.ErrorStatus) or isinstance(bin_amount, utils.ErrorStatus):
+        log_writter["Error"].print("[bin_transform] argument: columns, bin_amount "
+                "must be list or single value type")
+        return utils.ErrorStatus("bin_transform")
     # check length
     if len(columns) != len(bin_amount):
-        print("Error: [bin_transform] argument: columns and bin_amount must have same length")
-        return -1
+        log_writter["Error"].print("[bin_transform] argument: columns and bin_amount "
+                "must have same length")
+        return utils.ErrorStatus("bin_transform")
     
     if replace == True:
         ## TODO: bin_transform with relace
-        print("Warning: [bin_transform] replace == True not supported")
+        log_writter["Warning"].print("[bin_transform] replace == True not supported")
         pass
     else:
         for col_index, col in enumerate(columns):

@@ -5,6 +5,13 @@ IS_CONTINUOUS_RATIO = 0.9
 RARE_VALUE_COUNTS = 2000
 RARE_VALUE_RATIO = 0.03
 
+LOG_LEVEL_DICT = {
+    "default": 0,
+    "debug": 2,
+    "warning": 1,
+    "error": 0
+}
+
 ENCODE_DICT = {
     "OneHot": preprocessing.OneHotEncoder(),
     "LabelEncode": preprocessing.LabelEncoder()
@@ -30,4 +37,10 @@ ACTIVATION_DICT = {
     "GLU": nn.GLU(),
     "Mish": nn.Mish(),
     "ReLU": nn.ReLU()
+}
+
+LOSS_DICT = {
+    "BCE": nn.BCELoss(),
+    "BCELogits": nn.BCEWithLogitsLoss(),
+    "SoftMargin": nn.SoftMarginLoss()
 }

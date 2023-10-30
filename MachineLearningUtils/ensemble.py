@@ -37,11 +37,11 @@ class EnsembleProcessor:
 
     def _model_ensemble(self, df_model_pred_train, Y_train, df_model_pred_val, Y_val, df_model_pred_test):
         self.ensemble_model.fit(df_model_pred_train, Y_train)
-        pred_ensemble_val = self.ensemble_mode.predict_proba(df_model_pred_val)[:, 1]
+        pred_ensemble_val = self.ensemble_mode.predict_proba(df_model_pred_val)
         ensemble_metric_score = mlu.METRICS_DICT[self.metric_str](Y_val, pred_ensemble_val)
         print(f"[Debug] : [model_ensemble] {self.metric_str}: {ensemble_metric_score}")
 
-        pred_test = self.ensemble_mode.predict_proba(df_model_pred_test)[:, 1]
+        pred_test = self.ensemble_mode.predict_proba(df_model_pred_test)
         return pred_test, ensemble_metric_score
         
     def _climb_hill_ensemble(self, metrics_score_dict, df_model_pred_val, Y_val, df_model_pred_test):
