@@ -1,5 +1,7 @@
 import pandas as pd
 from collections.abc import Iterable
+
+from sklearn import utils
 import MachineLearningUtils as mlu
 
 class ErrorStatus:
@@ -110,6 +112,23 @@ def check_transform_no_nest_iterable_int(argument, log_level=0):
                 "argument must be no_nested iterable type")
         return ErrorStatus("check_transform_no_nest_iterable_int")
     
+def check_transform_target_tensor(target, input=None, log_level=0):
+    """
+    transform target to 2-dimensional shape
+    input:
+        - != None: transform target.shape[0] == input.shape[0]
+        - None: target.unsqueeze(1)
+    """
+    log_writter = LogWritter(log_level)
+    if len(target.shape) < 2:
+        target = target.unsqueeze(1)
+        if input is not None:
+            if target.shape[0] != input.shape[0]:
+                log_writter["Error"].print("target length should be equal with"
+                        " input feature length")
+                return ErrorStatus("check_transform_target_tensor")
+    return target
+
 
 def save_kaggle_csv(test_id, Y_column_name, prediction_probability, df_output_path):
     """

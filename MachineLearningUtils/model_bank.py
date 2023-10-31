@@ -8,7 +8,8 @@ from zmq import device
 import MachineLearningUtils as mlu
 from MachineLearningUtils import utils
 import pandas as pd
-from pandas.core.frame import DataFrame, Series
+from pandas.core.frame import DataFrame
+from pandas.core.series import Series
 
 def construct_model_block(in_feature_count, out_feature_count, hidden_layer,
         dropout_position, dropout_probability, activation_layer="ReLU", 
@@ -109,6 +110,25 @@ def linear_activation_dropout_block(in_feature_count, out_feature_count,
             nn.Dropout(p=dropout_probability),
             mlu.ACTIVATION_DICT[activation_layer])
 
+def Dataframe2Array(function):
+    def wrapper(*args, **kwargs):
+        transform_args = []
+        for arg in args:
+            if isinstance(arg, (DataFrame, Series)):
+                arg = arg.values
+            transform_args.append(arg)
+        return function(*transform_args, **kwargs)
+    return wrapper
+def DataFrame2Tensor(function):
+    def wrapper(*args, **kwargs):
+        transform_args = []
+        for arg in args:
+            if isinstance(arg, (DataFrame, Series)):
+                arg = torch.Tensor(arg.values)
+            transform_args.append(arg)
+        return function(*transform_args, **kwargs)
+    return wrapper
+
 class ModelBank(nn.Module):
     def __init__(self):
         super().__init__()
@@ -125,7 +145,9 @@ class FullyConnected(ModelBank):
     def __init__(self, in_feature_count, out_feature_count, hidden_layer=(100, ), 
             dropout_position=None, dropout_probability=0.1, activation_layer="ReLU",
             epoch=10, batch_size=100, shuffle=True, device='cuda', loss="BCELogits", 
-            optimizer="SGD", optimizer_param_dict={},log_level=2, show_log_batch=10):
+            sklearn_loss="ROC_AUC", optimizer="SGD", optimizer_param_dict={},
+            lr_scheduler="ExponentialLR", lr_scheduler_param_dict={},
+            log_level=2, show_log_batch=10, is_classification=True):
         super().__init__()
         # check error
         model_block = construct_model_block(in_feature_count, out_feature_count, 
@@ -141,6 +163,7 @@ class FullyConnected(ModelBank):
         self.device = device
         self.log_writter = utils.LogWritter(log_level)
         self.show_log_batch = show_log_batch
+        self.is_classification = is_classification
 
         if loss not in mlu.LOSS_DICT:
             self.log_writter["Error"].print("[FullyConnected.__init__]: argument: "
@@ -148,76 +171,102 @@ class FullyConnected(ModelBank):
             return utils.ErrorStatus("__init__", "FullyConnected")
         self.loss_str = loss
         self.loss = mlu.LOSS_DICT[loss]
+        self.sklearn_loss_str = sklearn_loss
+        if self.sklearn_loss_str is not None:
+            if self.sklearn_loss_str not in mlu.LOSS_DICT:
+                self.log_writter["Error"].print("[FullyConnected.__init__]: argument: "
+                    "sklearn_loss not in mlu.LOSS_DICT")
+                return utils.ErrorStatus("__init__", "FullyConnected")
+            self.sklearn_loss = mlu.LOSS_DICT[sklearn_loss]
+
         self.optimizer_param_dict = optimizer_param_dict
         if optimizer not in mlu.OPTIMIZER_DICT:
-            self.og_writter["Error"].print("[FullyConnected.__init__]: argument: "
+            self.log_writter["Error"].print("[FullyConnected.__init__]: argument: "
                     "optimizer not in mlu.LOSS_DICT")
             return utils.ErrorStatus("__init__", "FullyConnected")
-        self.optimizer = optimizer(self.model_block.parameters(), **self.optimizer_param_dict)
-        
+        self.optimizer = mlu.OPTIMIZER_DICT[optimizer](self.model_block.parameters(), **self.optimizer_param_dict)
+
+        self.scheduler_str = lr_scheduler
+        if self.scheduler_str is not None:
+            if self.scheduler_str not in mlu.SCHEDULER_DICT:
+                self.log_writter["Error"].print("[FullyConnected.__init__]: argument: "
+                        "lr_scheduler not in mlu.SCHEDULER_DICT")
+                return utils.ErrorStatus("__init__", "FullyConnected")
+            self.scheduler = mlu.SCHEDULER_DICT[self.scheduler_str](self.optimizer, **lr_scheduler_param_dict)
+    
+    @DataFrame2Tensor
     def forward(self, x):
         return self.model_block(x)
     
+    @DataFrame2Tensor
     def predict_proba(self, x):
-        return self.model_block(x)
+        with torch.no_grad():
+            self.model_block = self.model_block.to(self.device)
+            self.model_block.eval()
+            x = x.to(self.device)
+            return self.model_block(x).cpu().numpy()
 
+    @Dataframe2Array
     def fit(self, x_train, y_train, x_val, y_val):
-        # check value type
-        if isinstance(x_train, DataFrame):
-            x_train = x_train.values
-        if isinstance(y_train, DataFrame):
-            y_train = y_train.values
-        if isinstance(x_val, DataFrame):
-            x_val = x_val.values
-        if isinstance(y_val, DataFrame):
-            y_val = y_val.values
-
         x_train = torch.Tensor(x_train)
-        y_train = torch.Tensor(y_train)
         x_val = torch.Tensor(x_val)
-        y_val = torch.Tensor(y_val)
+        y_train = utils.check_transform_target_tensor(
+                torch.Tensor(y_train), x_train)
+        if isinstance(y_train, utils.ErrorStatus):
+            self.log_writter["Error"].print(
+                    "[FullyConnected.fit]: y_train: " + y_train.get_message())
+            return utils.ErrorStatus("fit", "FullyConnected")
+        y_val = utils.check_transform_target_tensor(
+                torch.Tensor(y_val), x_val)
+        if isinstance(y_val, utils.ErrorStatus):
+            self.log_writter["Error"].print(
+                    "[FullyConnected.fit]: y_val: " + y_val.get_message())
+            return utils.ErrorStatus("fit", "FullyConnected")
 
         # Dataset & DataLoader
         dataset_train = TensorDataset(x_train, y_train)
-        dataset_val = TensorDataset(y_train, y_val)
+        dataset_val = TensorDataset(x_val, y_val)
         train_loader = DataLoader(dataset_train, batch_size=self.batch_size,
                 shuffle=self.shuffle)
         test_loader = DataLoader(dataset_val, batch_size=self.batch_size)
 
         # Train & Val
-        self.model_block = self.model_block.add_module(self.device)
+        self.model_block = self.model_block.to(self.device)
         for epoch in range(self.epoch):
             # train
-            loss_train = torch.Tensor(0.0)
+            loss_train = 0.0
             self.model_block.train()
             for batch_index, (X, Y) in enumerate(train_loader):
                 X = X.to(self.device)
                 Y = Y.to(self.device)
                 self.model_block.train()
+                self.optimizer.zero_grad()
 
                 pred = self.forward(X)
                 loss = self.loss(pred, Y)
+
                 loss.backward()
                 self.optimizer.step()
-                self.optimizer.zero_grad()
 
                 with torch.no_grad():
-                    loss_train += loss
-                    if batch_index % self.show_log_batch == 0:
-                        self.log_writter["Debug"].print(f"Epoch: {epoch}, Batch: {batch_index}/{len(train_loader)}, "
-                                f"{self.loss_str}: {loss.item()}")
-            self.log_writter["Debug"].print(f"Training {self.loss_str}: {(loss_train/len(train_loader)).item()}")
+                    loss_train += loss.item()
+                    if (self.show_log_batch is not None) \
+                            and (batch_index % self.show_log_batch == 0):
+                        self.log_writter["Debug"].print(f"Epoch: {epoch}, Batch: {batch_index}/{len(train_loader)}, {self.loss_str}: {loss.item()}")
+            self.log_writter["Debug"].print(f"Epoch: {epoch}, Training {self.loss_str}: {loss_train/len(train_loader)}")
+            
+            # lr scheduler
+            if self.scheduler_str is not None:
+                self.scheduler.step()
             
             # val
             self.model_block.eval()
-            loss_eval = torch.Tensor(0.0)
             with torch.no_grad():
-                for batch_index, (X, Y) in enumerate(test_loader):
-                    X = X.to(self.device)
-                    Y = Y.to(self.device)
-                    self.model_block.eval()
+                x_val = x_val.to(self.device)
+                y_val = y_val.to(self.device)
+                self.model_block.eval()
 
-                    pred = self.forward(X)
-                    loss = self.loss(pred, Y)
-                    loss_eval += loss
-            self.log_writter["Debug"].print(f"Validation {self.loss_str}: {(loss_eval/len(test_loader)).item()}")
+                pred = self.forward(x_val)
+                self.log_writter["Debug"].print(f"Epoch: {epoch}, Validation {self.loss_str}: {(self.loss(pred, y_val)).item()}")
+                Y = y_val.cpu().int().numpy() if self.is_classification else y_val.cpu().numpy()
+                self.log_writter["Debug"].print(f"Epoch: {epoch}, Validation {self.sklearn_loss_str}: {self.sklearn_loss(Y, pred.cpu().numpy())}")

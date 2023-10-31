@@ -1,5 +1,6 @@
 from sklearn import preprocessing, metrics, model_selection
 import torch.nn as nn
+from torch import optim
 
 IS_CONTINUOUS_RATIO = 0.9
 RARE_VALUE_COUNTS = 2000
@@ -42,5 +43,16 @@ ACTIVATION_DICT = {
 LOSS_DICT = {
     "BCE": nn.BCELoss(),
     "BCELogits": nn.BCEWithLogitsLoss(),
-    "SoftMargin": nn.SoftMarginLoss()
+    "SoftMargin": nn.SoftMarginLoss(),
+    "ROC_AUC": metrics.roc_auc_score
+}
+
+OPTIMIZER_DICT = {
+    "SGD": optim.SGD,
+    "Adam": optim.Adam
+}
+
+SCHEDULER_DICT = {
+    "ExponentialLR": optim.lr_scheduler.ExponentialLR,
+    "CosineAnnealingLR": optim.lr_scheduler.CosineAnnealingLR
 }

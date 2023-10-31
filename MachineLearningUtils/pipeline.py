@@ -21,7 +21,8 @@ class ClassWrapper:
         
     def predict_proba(self, X):
         if self.problem == "classification":
-            if self.model_type == "torch" or self.model_type == "custom":
+            if self.model_type == "torch":
+                self.model.eval()
                 return self.model(X)
             elif self.model_type == "sklearn" and self.num_class == 2:
                 return self.model.predict_proba(X)[:, 1]
@@ -32,7 +33,7 @@ class ClassWrapper:
         if self.model_type == "sklearn":
             return self.model.fit(x_train, y_train)
         else:
-            return self.model(x_train, y_train, x_val, y_val)
+            return self.model.fit(x_train, y_train, x_val, y_val)
 
 def classification_model_decorator(function):
     def wrapper(*args, **kwargs):
@@ -88,7 +89,7 @@ def classification_single_model_cv(df_labeled, df_target, df_test_encoding, cv_m
 
         log_writter["Debug"].print("Saving...")
         # save validation predictions
-        if validation_save_path != None:
+        if validation_save_path is not None:
             pd.DataFrame(pred_val).to_csv(
                     os.path.join(validation_save_path, str(fold_index) + ".csv"), 
                     index=False)
