@@ -1,5 +1,8 @@
 import pandas as pd
 from collections.abc import Iterable
+from pandas.core.frame import DataFrame
+from pandas.core.series import Series
+import torch
 
 from sklearn import utils
 import MachineLearningUtils as mlu
@@ -53,6 +56,25 @@ class LogWritter:
         if self.this_message_log_level <= self.print_log_level:
             print(self.this_message_prefix + message_string)
         
+def Dataframe2Array(function):
+    def wrapper(*args, **kwargs):
+        transform_args = []
+        for arg in args:
+            if isinstance(arg, (DataFrame, Series)):
+                arg = arg.values
+            transform_args.append(arg)
+        return function(*transform_args, **kwargs)
+    return wrapper
+def DataFrame2Tensor(function):
+    def wrapper(*args, **kwargs):
+        transform_args = []
+        for arg in args:
+            if isinstance(arg, (DataFrame, Series)):
+                arg = torch.Tensor(arg.values)
+            transform_args.append(arg)
+        return function(*transform_args, **kwargs)
+    return wrapper
+
 
 def transform_single_value_to_list(argument, log_level=0):
     log_writter = LogWritter(log_level)
@@ -84,7 +106,7 @@ def check_transform_single_value_int(argument, log_level=0):
     if isinstance(argument, (str, int, float)):
         return int(argument) if isinstance(argument, str) else argument
     else:
-        log_writter["Error"].print("[check_transform_single_value]: argument: "
+        log_writter["Error"].print("[check_transform_single_value_int]: argument: "
                 "argument must be single value type")
         return ErrorStatus("check_transform_single_value_int")
 
@@ -93,7 +115,7 @@ def check_transform_single_value_float(argument, log_level=0):
     if isinstance(argument, (str, int, float)):
         return float(argument) if isinstance(argument, str) else argument
     else:
-        log_writter["Error"].print("[Error]: [check_transform_single_value]: argument: "
+        log_writter["Error"].print("[Error]: [check_transform_single_value_float]: argument: "
                 "argument must be single value type")
         return ErrorStatus("check_transform_single_value_float")
 
@@ -102,13 +124,13 @@ def check_transform_no_nest_iterable_int(argument, log_level=0):
     if isinstance(argument, Iterable):
         result = list(map(check_transform_single_value_int, argument))
         if None in result:
-            log_writter["Error"].print("Error]: [check_transform_no_nest_iterable]: argument: "
+            log_writter["Error"].print("Error]: [check_transform_no_nest_iterable_int]: argument: "
                     "each value in argument must be single value type")
             return ErrorStatus("check_transform_no_nest_iterable_int")
         else:
             return result
     else:
-        log_writter["Error"].print("[check_transform_no_nest_iterable]: argument: "
+        log_writter["Error"].print("[check_transform_no_nest_iterable_int]: argument: "
                 "argument must be no_nested iterable type")
         return ErrorStatus("check_transform_no_nest_iterable_int")
     
@@ -124,8 +146,8 @@ def check_transform_target_tensor(target, input=None, log_level=0):
         target = target.unsqueeze(1)
         if input is not None:
             if target.shape[0] != input.shape[0]:
-                log_writter["Error"].print("target length should be equal with"
-                        " input feature length")
+                log_writter["Error"].print("[check_transform_target_tensor]: "
+                        "target length should be equal with input feature length")
                 return ErrorStatus("check_transform_target_tensor")
     return target
 

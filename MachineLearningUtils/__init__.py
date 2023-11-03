@@ -54,5 +54,6 @@ OPTIMIZER_DICT = {
 
 SCHEDULER_DICT = {
     "ExponentialLR": optim.lr_scheduler.ExponentialLR,
-    "CosineAnnealingLR": optim.lr_scheduler.CosineAnnealingLR
+    "CosineAnnealingLR": optim.lr_scheduler.CosineAnnealingLR,
+    "CosineAnnealingWarmRestarts": optim.lr_scheduler.CosineAnnealingWarmRestarts
 }

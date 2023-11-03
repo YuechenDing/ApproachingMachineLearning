@@ -7,6 +7,14 @@ import torch.nn as nn
 import os
 
 class ClassWrapper:
+    """
+    Wrap customized model & sklearn model, so that torch models can be used with
+        sklearn models in one pipeline
+    fit(x_train, y_train, x_val, y_val):
+        - wrap sklearn-model & torch-model training
+    predict_proba(x):
+        - wrap sklearn-model & torch-model inference(2-class, multi-class, regression)
+    """
     def __init__(self, model, problem, num_class):
         self.model = model
         self.problem = problem
@@ -36,6 +44,10 @@ class ClassWrapper:
             return self.model.fit(x_train, y_train, x_val, y_val)
 
 def classification_model_decorator(function):
+    """
+    Decorator transforming argument with sklearn-model/torch-model 
+        to ClassWrapper type model
+    """
     def wrapper(*args, **kwargs):
         num_class = len(pd.unique(args[1]))
         kwargs["model"] = ClassWrapper(kwargs["model"], 
