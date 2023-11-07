@@ -2,6 +2,9 @@ import MachineLearningUtils as mlu
 from MachineLearningUtils import utils
 import numpy as np
 class EnsembleProcessor:
+    """
+    An Ensemble Processor that supports climb_hill, model_ensemble methods
+    """
     def __init__(self, ensemble_mode, metric_str="roc_auc", ensemble_model=None, 
             metrics_score_dict=None, weight_range=np.arange(-1, 1.01, 0.01)):
         self.ensemble_mode = ensemble_mode

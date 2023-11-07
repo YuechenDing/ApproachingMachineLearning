@@ -8,6 +8,11 @@ from sklearn import utils
 import MachineLearningUtils as mlu
 
 class ErrorStatus:
+    """
+    Return value when an error occurs.
+    get_message(): 
+        - {function_name} (in {class_name} class) failed 
+    """
     def __init__(self, function_name, class_name=None, additional_message=None):
         self.class_name = class_name
         self.function_name = function_name
